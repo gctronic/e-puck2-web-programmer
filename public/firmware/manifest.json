@@ -1,0 +1,51 @@
+{
+  "main": [
+    {
+      "label": "Factory firmware",
+      "version": "05.02.26",
+      "commit": "3f17433",
+      "file": "main/e-puck2_main-processor_05.02.26_3f17433.elf"
+    }
+  ],
+  "radio": [
+    {
+      "label": "Factory firmware",
+      "hardware": "2.2",
+      "version": "06.02.26",
+      "commit": "baa628d",
+      "images": [
+        { "name": "Bootloader", "offset": "0x1000", "file": "radio/esp32-firmware_06.02.26_baa628d_2.2/bootloader.bin" },
+        { "name": "Partition table", "offset": "0x8000", "file": "radio/esp32-firmware_06.02.26_baa628d_2.2/partition-table.bin" },
+        { "name": "Application", "offset": "0x10000", "file": "radio/esp32-firmware_06.02.26_baa628d_2.2/ESP32_E-Puck_2.bin" }
+      ]
+    },
+    {
+      "label": "Factory firmware",
+      "hardware": "2.0-2.1",
+      "version": "06.02.26",
+      "commit": "baa628d",
+      "images": [
+        { "name": "Bootloader", "offset": "0x1000", "file": "radio/esp32-firmware_06.02.26_baa628d_2.1/bootloader.bin" },
+        { "name": "Partition table", "offset": "0x8000", "file": "radio/esp32-firmware_06.02.26_baa628d_2.1/partition-table.bin" },
+        { "name": "Application", "offset": "0x10000", "file": "radio/esp32-firmware_06.02.26_baa628d_2.1/ESP32_E-Puck_2.bin" }
+      ]
+    }
+  ],
+  "programmer": [
+    {
+      "label": "Factory firmware",
+      "chip": "l452",
+      "version": "13.01.23",
+      "commit": "9a986e1",
+      "file": "programmer/e-puck2_programmer_L452_13.01.23_9a986e1.hex"
+    },
+    {
+      "label": "Factory firmware",
+      "chip": "f413",
+      "version": "28.05.20",
+      "commit": "3b600ec",
+      "file": "programmer/e-puck2_programmer_F413_28.05.20_3b600ec.bin",
+      "address": "0x08000000"
+    }
+  ]
+}

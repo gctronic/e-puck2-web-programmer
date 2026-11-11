@@ -1,0 +1,1138 @@
+:root {
+  --bg: #f4f5f3;
+  --surface: #ffffff;
+  --surface-2: #f0f2ef;
+  --border: #dcdfda;
+  --text: #1c211f;
+  --muted: #5c6661;
+  --accent: #237a5c;
+  --accent-hover: #1b664c;
+  --accent-soft: #e2f1ea;
+  --warn: #9a6200;
+  --error: #b42318;
+  --ok: #1f7a4a;
+  --log-bg: #15191a;
+  --log-text: #d7dedb;
+  --log-dim: #8a9792;
+  --log-ok: #6fd6a0;
+  --log-warn: #f0c060;
+  --log-error: #ff8b7e;
+  --radius: 10px;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111414;
+    --surface: #1a1e1e;
+    --surface-2: #222727;
+    --border: #2f3636;
+    --text: #e6ebe8;
+    --muted: #9aa5a0;
+    --accent: #3fae84;
+    --accent-hover: #52c095;
+    --accent-soft: #1d3a2f;
+    --warn: #f0c060;
+    --error: #ff8b7e;
+    --ok: #6fd6a0;
+    --log-bg: #0c0e0e;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------ header */
+
+.app-header {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.robot-photo {
+  width: 76px;
+  height: auto;
+  flex: none;
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.18));
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+
+.banner {
+  max-width: 1132px;
+  margin: 8px auto 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+}
+
+.banner-error {
+  background: color-mix(in srgb, var(--error) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
+}
+
+/* ------------------------------------------------------------ tabs */
+
+/* The three tabs are the main menu: always fully visible, never scrolled. */
+.tabs {
+  max-width: 1180px;
+  margin: 12px auto 0;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  gap: 4px;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  padding: 10px 16px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  min-width: 0;
+  border-radius: 8px 8px 0 0;
+  box-shadow: inset 0 -3px 0 transparent;
+  transition: color 0.15s, box-shadow 0.2s, background 0.15s;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--text);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+@media (max-width: 560px) {
+  .tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+  }
+  .tab {
+    padding: 8px 6px 10px;
+    align-items: center;
+    text-align: center;
+  }
+  .tab-title {
+    font-size: 0.88rem;
+    line-height: 1.25;
+  }
+  .tab-chip {
+    font-size: 0.7rem;
+  }
+}
+
+.tab-title {
+  font-weight: 600;
+}
+
+.tab-chip {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.tab[aria-selected="true"] .tab-chip {
+  color: var(--accent);
+}
+
+.tab:focus-visible,
+.btn:focus-visible,
+.dropzone:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ layout */
+
+main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+}
+
+.panel:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.col-output {
+  position: sticky;
+  top: 16px;
+}
+
+@media (max-width: 860px) {
+  .panel:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .col-output {
+    position: static;
+  }
+  .app-header,
+  .tabs,
+  main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* ------------------------------------------------------------ steps */
+
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 34px;
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: grid;
+  place-items: center;
+}
+
+/* ------------------------------------------------------------ drop zone */
+
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropzone:hover,
+.dropzone.drag {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dz-title {
+  font-weight: 600;
+}
+
+.dz-hint {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 2px;
+}
+
+.file-info:empty {
+  display: none;
+}
+
+.file-info {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+
+.file-name {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.file-meta {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.file-error {
+  color: var(--error);
+}
+
+.tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  vertical-align: 2px;
+}
+
+.segments {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ forms */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  min-width: 0;
+}
+
+input.mono {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  border-color: var(--accent);
+}
+
+input.invalid {
+  border-color: var(--error);
+}
+
+.inline {
+  display: flex;
+  gap: 6px;
+}
+
+.inline > * {
+  flex: 1;
+}
+
+.options {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 14px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.options legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.grid-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.check input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+/* segmented control */
+.segmented {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  align-self: flex-start;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented span {
+  display: block;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.segmented input:checked + span {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid var(--accent);
+}
+
+.mode-separate,
+.mode-merged {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-separate[hidden],
+.mode-merged[hidden] {
+  display: none;
+}
+
+/* ESP32 image table */
+.image-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.image-row {
+  display: grid;
+  grid-template-columns: minmax(118px, 1fr) minmax(0, 1.5fr) 92px 28px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.image-table.drag {
+  border-color: var(--accent);
+}
+
+.image-row.drag {
+  background: var(--accent-soft);
+  outline: 2px dashed var(--accent);
+  outline-offset: -3px;
+}
+
+.image-row-head {
+  border-top: 0;
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.image-row input[type="text"] {
+  padding: 4px 7px;
+  width: 100%;
+}
+
+.row-file {
+  display: block;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.88rem;
+}
+
+.row-file:hover {
+  border-color: var(--accent);
+}
+
+.row-file.has-file {
+  border-style: solid;
+  color: var(--text);
+}
+
+.row-file em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.8rem;
+}
+
+.icon-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--error);
+}
+
+@media (max-width: 520px) {
+  .image-row {
+    grid-template-columns: minmax(0, 1fr) 90px 28px;
+  }
+  .image-row .row-label,
+  .image-row-head span:first-child {
+    display: none;
+  }
+  .grid-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------ buttons */
+
+.btn {
+  appearance: none;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 11px 18px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+  align-self: flex-start;
+}
+
+.btn-link:disabled {
+  opacity: 0.5;
+}
+
+/* ------------------------------------------------------------ progress + log */
+
+.progress {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.progress-pct {
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+.progress-track {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.15s;
+}
+
+.progress[data-state="idle"] .progress-label {
+  color: var(--muted);
+}
+
+.progress[data-state="done"] .progress-fill {
+  background: var(--ok);
+}
+
+.progress[data-state="done"] .progress-label {
+  color: var(--ok);
+}
+
+.progress[data-state="error"] .progress-fill {
+  background: var(--error);
+}
+
+.progress[data-state="error"] .progress-label {
+  color: var(--error);
+}
+
+.log-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: -8px;
+}
+
+.log-actions {
+  display: flex;
+  gap: 14px;
+}
+
+.btn-copy.copied {
+  color: var(--ok);
+}
+
+.log {
+  margin: 0;
+  background: var(--log-bg);
+  color: var(--log-text);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log:empty::before {
+  content: "Output will appear here.";
+  color: var(--log-dim);
+}
+
+.log-dim {
+  color: var(--log-dim);
+}
+
+.log-ok {
+  color: var(--log-ok);
+}
+
+.log-warn {
+  color: var(--log-warn);
+}
+
+.log-error {
+  color: var(--log-error);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ help */
+
+.help {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.help summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.help p {
+  margin: 8px 0;
+}
+
+.help-global {
+  margin-top: 32px;
+}
+
+pre.code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  color: var(--text);
+  margin: 6px 0;
+}
+
+.help ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.help li + li {
+  margin-top: 4px;
+}
+
+/* ------------------------------------------------------------ DFU guide */
+
+.dfu-guide {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guide-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guide-heading {
+  font-weight: 600;
+}
+
+.guide-head .segmented span {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.guide-hint {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.guide-figure {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111;
+  line-height: 0;
+  text-align: center;
+}
+
+/* Sized exactly like the image, so the markers (in % of it) stay on the right spot. */
+.guide-stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.guide-figure:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.guide-figure.enter .guide-image {
+  animation: guide-fade 0.35s ease-out;
+}
+
+.guide-image {
+  display: block;
+  max-width: 100%;
+  max-height: 380px;
+  width: auto;
+  height: auto;
+}
+
+.guide-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.marker {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 3px solid #ffd23f;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.45), inset 0 0 0 2px rgb(0 0 0 / 0.25);
+}
+
+.marker::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 3px solid #ffd23f;
+  animation: marker-pulse 1.6s ease-out infinite;
+}
+
+.marker.secondary {
+  border-color: rgb(255 255 255 / 0.7);
+  border-style: dashed;
+}
+
+.marker.secondary::after {
+  display: none;
+}
+
+.marker-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 600 0.75rem/1.2 system-ui, sans-serif;
+  color: #1c211f;
+  background: #ffd23f;
+  padding: 2px 7px;
+  border-radius: 99px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  animation: label-bob 1.6s ease-in-out infinite;
+}
+
+.marker.secondary .marker-label {
+  background: rgb(255 255 255 / 0.85);
+  animation: none;
+}
+
+.guide-detail {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  font: 600 0.8rem/1 system-ui, sans-serif;
+  color: #fff;
+  background: rgb(0 0 0 / 0.65);
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 99px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.guide-detail:hover {
+  background: rgb(0 0 0 / 0.85);
+}
+
+.guide-body {
+  min-height: 92px;
+}
+
+.guide-counter {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.guide-title {
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.guide-text {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.guide-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.btn-nav {
+  appearance: none;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: 7px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.btn-nav:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.guide-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.guide-dot {
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 99px;
+  background: var(--border);
+  cursor: pointer;
+  transition: width 0.25s, background 0.25s;
+}
+
+.guide-dot.active {
+  width: 22px;
+  background: var(--accent);
+}
+
+@keyframes guide-fade {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes marker-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes label-bob {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, -3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker::after,
+  .marker-label,
+  .guide-figure.enter .guide-image {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------ ESP32 advanced options */
+
+.options-advanced legend {
+  padding: 0 4px;
+}
+
+.legend-check {
+  font-weight: 600;
+}
+
+.options-note {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Locked: everything but the legend checkbox is greyed out and not editable. */
+.options-advanced.locked > :not(legend) {
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.options-advanced.locked .options-note {
+  opacity: 1;
+}
+
+.options-advanced:not(.locked) .options-note {
+  display: none;
+}
+
+.options-advanced:disabled .check,
+.options-advanced:disabled select,
+.options-advanced:disabled input:not(#esp-advanced-edit) {
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------ wiki reference */
+
+.source {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ official firmware */
+
+.src-official,
+.src-local {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fw-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.fw-card .segmented {
+  align-self: flex-start;
+}
+
+.fw-hint {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.fw-meta:empty {
+  display: none;
+}
+
+.fw-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.fw-version {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fw-files {
+  word-break: break-all;
+}
+
+select:disabled {
+  color: var(--muted);
+}
+
+.tool-field {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+  vertical-align: 1px;
+}

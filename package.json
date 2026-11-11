@@ -1,0 +1,23 @@
+{
+  "name": "e-puck2-web-programmer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/check-firmware.mjs && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check-firmware": "node scripts/check-firmware.mjs"
+  },
+  "dependencies": {
+    "esp-web-flasher": "5.1.5",
+    "esptool-js": "0.7.1",
+    "tasmota-webserial-esptool": "9.4.2"
+  },
+  "devDependencies": {
+    "@types/w3c-web-serial": "^1.0.3",
+    "@types/w3c-web-usb": "^1.0.10",
+    "typescript": "~5.4.5",
+    "vite": "^5.4.0"
+  }
+}

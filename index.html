@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>e-puck2 Programmer</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23237a5c'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23fff'/%3E%3C/svg%3E" />
+    <style>
+      /* Critical styles applied before the main stylesheet is loaded (avoids a flash of unstyled content). */
+      html { background: #f4f5f3; color: #1c211f; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      @media (prefers-color-scheme: dark) { html { background: #111414; color: #e6ebe8; } }
+      .robot-photo { width: 76px; height: auto; }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <img class="robot-photo" src="400px-e-puck2_light4.jpg" width="400" height="377" alt="e-puck2 robot" />
+        <div>
+          <h1>e-puck2 Programmer</h1>
+          <p class="subtitle">Update the firmware of the robot's three processors from the browser</p>
+        </div>
+      </div>
+    </header>
+
+    <div id="unsupported" class="banner banner-error" hidden>
+      This browser does not support <strong>Web Serial</strong> / <strong>WebUSB</strong>.
+      Use Google Chrome, Microsoft Edge or another Chromium-based browser (desktop), and open the page over
+      <code>https://</code> or <code>http://localhost</code>.
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Processor">
+      <button class="tab" role="tab" id="tabbtn-f407" aria-controls="tab-f407" data-tab="f407">
+        <span class="tab-title">Main processor</span><span class="tab-chip">STM32F407</span>
+      </button>
+      <button class="tab" role="tab" id="tabbtn-esp32" aria-controls="tab-esp32" data-tab="esp32">
+        <span class="tab-title">Radio module</span><span class="tab-chip">ESP32</span>
+      </button>
+      <button class="tab" role="tab" id="tabbtn-f413" aria-controls="tab-f413" data-tab="f413">
+        <span class="tab-title">Programmer</span><span class="tab-chip">STM32F413 / L452</span>
+      </button>
+    </nav>
+
+    <main>
+      <!-- ============================================================ STM32F407 -->
+      <section class="panel" role="tabpanel" id="tab-f407" aria-labelledby="tabbtn-f407">
+        <div class="col col-config">
+          <ol class="steps">
+            <li>Connect the robot to the computer with the USB cable and <strong>switch it on</strong>.</li>
+            <li>Use the latest official firmware, or choose your own file (<code>.elf</code>).</li>
+            <li>Click <em>Program</em> and select the <strong>GDB Server</strong> port, the first of the two e-puck2 ports
+              (lower number, e.g. <code>ttyACM0</code> / <code>COM3</code>).</li>
+          </ol>
+
+          <div class="segmented src-switch" role="radiogroup" aria-label="Firmware source">
+            <label><input type="radio" name="f407-src" value="official" checked /><span>Official firmware</span></label>
+            <label><input type="radio" name="f407-src" value="local" /><span>Your own file</span></label>
+          </div>
+          <div class="src-official">
+            <div class="fw-card">
+              <div class="field">
+                <label for="f407-fw">Firmware</label>
+                <select id="f407-fw" class="fw-select"></select>
+              </div>
+              <div class="fw-meta"></div>
+            </div>
+          </div>
+
+          <div class="src-local" hidden>
+          <div class="dropzone" tabindex="0" role="button" aria-label="Choose STM32F407 firmware">
+            <input type="file" accept=".elf,.bin,.hex,.ihex" hidden />
+            <div class="dz-title">Drop the firmware here or click to browse</div>
+            <div class="dz-hint">.elf (recommended), .bin or .hex</div>
+          </div>
+          <div class="file-info"></div>
+
+          <div class="field bin-base-row" hidden>
+            <label for="f407-base">Load address for .bin</label>
+            <input id="f407-base" class="mono" type="text" value="0x08000000" spellcheck="false" />
+          </div>
+          </div>
+
+          <fieldset class="options">
+            <legend>Options</legend>
+            <label class="check"><input type="checkbox" id="f407-verify" checked /> Verify after writing</label>
+            <label class="check"><input type="checkbox" id="f407-reset" checked /> Reset and run after programming</label>
+            <label class="check"><input type="checkbox" id="f407-trace" /> Show GDB protocol trace</label>
+          </fieldset>
+
+          <button class="btn btn-primary btn-program" disabled>Program STM32F407</button>
+
+          <details class="help">
+            <summary>How it works</summary>
+            <p>The STM32F413 on the robot runs a Black Magic Probe based GDB server. This page talks the GDB remote
+              protocol directly with it.</p>
+          </details>
+          <p class="source">Reference:
+            <a href="https://www.gctronic.com/doc/index.php?title=e-puck2#Firmware_update" target="_blank" rel="noopener">e-puck2 wiki · main processor firmware update</a>
+          </p>
+        </div>
+        <div class="col col-output">
+          <div class="progress" data-state="idle">
+            <div class="progress-head"><span class="progress-label"></span><span class="progress-pct"></span></div>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+          </div>
+          <div class="log-head">
+            <span>Log</span>
+            <span class="log-actions">
+              <button class="btn-link btn-copy">Copy</button>
+              <button class="btn-link btn-clear">Clear</button>
+            </span>
+          </div>
+          <pre class="log" aria-live="polite"></pre>
+        </div>
+      </section>
+
+      <!-- ============================================================ ESP32 -->
+      <section class="panel" role="tabpanel" id="tab-esp32" aria-labelledby="tabbtn-esp32" hidden>
+        <div class="col col-config">
+          <ol class="steps">
+            <li>Connect the robot to the computer with the USB cable and <strong>switch it on</strong>.</li>
+            <li>Choose your robot version to use the latest official firmware, or choose your own images.</li>
+            <li>Click <em>Program</em> and select the <strong>Serial Monitor</strong> port, the second of the two e-puck2 ports
+              (higher number, e.g. <code>ttyACM1</code> / <code>COM4</code>).</li>
+          </ol>
+
+          <div class="segmented src-switch" role="radiogroup" aria-label="Firmware source">
+            <label><input type="radio" name="esp-src" value="official" checked /><span>Official firmware</span></label>
+            <label><input type="radio" name="esp-src" value="local" /><span>Your own file</span></label>
+          </div>
+          <div class="src-official">
+            <div class="fw-card">
+              <div class="field">
+                <span class="field-label" id="esp-hw-label">Robot version</span>
+                <div class="segmented" role="radiogroup" aria-labelledby="esp-hw-label">
+                  <label><input type="radio" name="esp-hw" value="2.0-2.1" /><span>e-puck 2.0 / 2.1</span></label>
+                  <label><input type="radio" name="esp-hw" value="2.2" /><span>e-puck 2.2 or later</span></label>
+                </div>
+                <p class="fw-hint">From e-puck 2.2 the ESP32 has 2 MB of additional PSRAM and needs its own firmware.
+                  The version is printed on the top board of the robot (e.g. “e-puck 2.2”).</p>
+              </div>
+              <div class="field">
+                <label for="esp-fw">Firmware</label>
+                <select id="esp-fw" class="fw-select"></select>
+              </div>
+              <div class="fw-meta"></div>
+            </div>
+          </div>
+
+          <div class="src-local" hidden>
+          <div class="segmented" role="radiogroup" aria-label="Image layout">
+            <label><input type="radio" name="esp-mode" value="separate" checked /><span>Separate images</span></label>
+            <label><input type="radio" name="esp-mode" value="merged" /><span>Single merged image</span></label>
+          </div>
+
+          <div class="mode-separate">
+            <div class="dropzone dropzone-separate" tabindex="0" role="button" aria-label="Choose ESP32 images">
+              <input id="esp-multi-input" type="file" accept=".bin" multiple hidden />
+              <div class="dz-title">Drop all the .bin files here or click to browse</div>
+              <div class="dz-hint">bootloader.bin, partitions_singleapp.bin and ESP32_E-Puck_2.bin are assigned automatically.
+                You can also drop a single file on a row below.</div>
+            </div>
+            <div class="image-table">
+              <div class="image-row image-row-head"><span>Image</span><span>File</span><span>Offset</span><span></span></div>
+              <div class="image-rows"></div>
+            </div>
+            <button class="btn-link btn-add-row">+ Add image</button>
+          </div>
+
+          <div class="mode-merged" hidden>
+            <div class="dropzone dropzone-merged" tabindex="0" role="button" aria-label="Choose merged ESP32 image">
+              <input id="esp-merged-input" type="file" accept=".bin" hidden />
+              <div class="dz-title">Drop the merged image here or click to browse</div>
+              <div class="dz-hint">A single .bin containing bootloader, partition table and application</div>
+            </div>
+            <div class="merged-info file-info"></div>
+            <div class="field">
+              <label for="esp-merged-offset">Flash offset</label>
+              <input id="esp-merged-offset" class="mono" type="text" value="0x0" spellcheck="false" />
+            </div>
+          </div>
+          </div>
+
+          <fieldset class="options options-advanced locked" id="esp-advanced" disabled>
+            <legend>
+              <label class="check legend-check"><input type="checkbox" id="esp-advanced-edit" /> Advanced options</label>
+            </legend>
+            <p class="options-note">The defaults work for the e-puck2. Tick <em>Advanced options</em> to change them.</p>
+            <div class="grid-fields">
+              <div class="field">
+                <label for="esp-baud">Baud rate</label>
+                <div class="inline">
+                  <select id="esp-baud">
+                    <option value="115200">115200</option>
+                    <option value="230400" selected>230400</option>
+                    <option value="460800">460800</option>
+                    <option value="921600">921600</option>
+                    <option value="custom">Custom…</option>
+                  </select>
+                  <input id="esp-baud-custom" class="mono" type="number" min="9600" step="1" placeholder="e.g. 250000" hidden />
+                </div>
+              </div>
+              <div class="field">
+                <label for="esp-flash-mode">Flash mode</label>
+                <select id="esp-flash-mode">
+                  <option value="keep">keep</option>
+                  <option value="qio">qio</option>
+                  <option value="qout">qout</option>
+                  <option value="dio" selected>dio</option>
+                  <option value="dout">dout</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="esp-flash-freq">Flash frequency</label>
+                <select id="esp-flash-freq">
+                  <option value="keep">keep</option>
+                  <option value="80m">80 MHz</option>
+                  <option value="40m" selected>40 MHz</option>
+                  <option value="26m">26 MHz</option>
+                  <option value="20m">20 MHz</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="esp-flash-size">Flash size</label>
+                <select id="esp-flash-size">
+                  <option value="detect" selected>detect</option>
+                  <option value="keep">keep</option>
+                  <option value="1MB">1 MB</option>
+                  <option value="2MB">2 MB</option>
+                  <option value="4MB">4 MB</option>
+                  <option value="8MB">8 MB</option>
+                  <option value="16MB">16 MB</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="esp-block-pause">Pause between blocks (ms)</label>
+                <input id="esp-block-pause" class="mono" type="number" min="0" max="500" step="1" value="10" />
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" id="esp-verify" checked /> Verify after writing (MD5)</label>
+            <label class="check"><input type="checkbox" id="esp-erase-all" /> Erase the entire flash first</label>
+            <label class="check"><input type="checkbox" id="esp-trace" /> Show serial trace</label>
+          </fieldset>
+
+          <!-- Flashing tool choice, used to compare ESP32 tools on the robot (see README, "ESP32 flashing tools:
+               test results"). esptool-js with the ROM loader and 64 KB parts was kept; to compare again,
+               uncomment this block and the tasmota / esp-web-flasher code in src/esp32.ts.
+          <div class="field tool-field">
+            <label for="esp-tool">Flashing tool <span class="badge">testing</span></label>
+            <select id="esp-tool">
+              <option value="rom" selected>esptool-js · ESP32 ROM loader (64 KB parts, MD5, retries)</option>
+              <option value="legacy-stub">esptool-js · legacy stub like esptool.py (64 KB parts, MD5, retries)</option>
+              <option value="esp-web-flasher">esp-web-flasher (Nabu Casa, deprecated) · legacy stub</option>
+              <option value="tasmota">tasmota-webserial-esptool (Jason2866) · its stub, else ROM loader</option>
+            </select>
+            <p class="fw-hint">Temporary choice to compare the tools on the robot; only one will be kept.</p>
+          </div>
+          -->
+
+          <button class="btn btn-primary btn-program" disabled>Program ESP32</button>
+
+          <details class="help">
+            <summary>If programming fails</summary>
+            <ul>
+              <li>Now and then a block is corrupted on the way to the ESP32 (<em>“… failed with status 1,5”</em>):
+                the page writes that part again automatically, and the log says so. If programming still stops,
+                increase <strong>Pause between blocks</strong> (e.g. 20–50 ms) and try again.</li>
+              <li>If the connection or the baud rate change fails, select <strong>115200</strong> baud.</li>
+              <li>Enable <strong>Show serial trace</strong> to see the bytes exchanged with the ESP32 (programming
+                becomes much slower).</li>
+            </ul>
+          </details>
+
+          <details class="help">
+            <summary>How it works</summary>
+            <p>Based on <code>esptool-js</code>. Only 115200 or 230400 are expected to work. The images are written
+              in parts of 64 KB, each verified with MD5: a part that arrives corrupted through the programmer's
+              serial bridge is written again (after reconnecting to the ESP32 if needed), so a single bad block does
+              not make the whole programming fail. A short pause after each 1 KB block makes errors rarer.</p>
+          </details>
+          <p class="source">Reference:
+            <a href="https://www.gctronic.com/doc/index.php?title=e-puck2#Firmware_update_2" target="_blank" rel="noopener">e-puck2 wiki · radio module firmware update</a>
+          </p>
+        </div>
+        <div class="col col-output">
+          <div class="progress" data-state="idle">
+            <div class="progress-head"><span class="progress-label"></span><span class="progress-pct"></span></div>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+          </div>
+          <div class="log-head">
+            <span>Log</span>
+            <span class="log-actions">
+              <button class="btn-link btn-copy">Copy</button>
+              <button class="btn-link btn-clear">Clear</button>
+            </span>
+          </div>
+          <pre class="log" aria-live="polite"></pre>
+        </div>
+      </section>
+
+      <!-- ============================================================ STM32F413 -->
+      <section class="panel" role="tabpanel" id="tab-f413" aria-labelledby="tabbtn-f413" hidden>
+        <div class="col col-config">
+          <ol class="steps">
+            <li>Put the programmer in <strong>DFU mode</strong> following the guide below. It appears as
+              <code>STM32 BOOTLOADER</code> (USB ID <code>0483:df11</code>).</li>
+            <li>Use the latest official firmware for your robot, or choose your own file.</li>
+            <li>Click <em>Program</em> and select <strong>STM32 BOOTLOADER</strong>.</li>
+          </ol>
+
+          <div class="dfu-guide">
+            <div class="guide-head">
+              <span class="guide-heading">Enter DFU mode</span>
+              <div class="segmented" role="radiogroup" aria-label="Robot version">
+                <label><input type="radio" name="dfu-variant" value="f413" checked /><span>ID &lt; 5400 · F413</span></label>
+                <label><input type="radio" name="dfu-variant" value="l452" /><span>ID ≥ 5400 · L452</span></label>
+              </div>
+            </div>
+            <p class="guide-hint">The robot ID is the number on the label of the radio module.</p>
+            <div class="guide-figure" tabindex="0" aria-label="DFU guide picture, use arrow keys to change step">
+              <div class="guide-stage">
+                <img class="guide-image" alt="" />
+                <div class="guide-markers"></div>
+              </div>
+              <button class="guide-detail" hidden></button>
+            </div>
+            <div class="guide-body">
+              <div class="guide-counter"></div>
+              <div class="guide-title"></div>
+              <p class="guide-text"></p>
+            </div>
+            <div class="guide-nav">
+              <button class="btn-nav guide-prev" aria-label="Previous step">‹ Back</button>
+              <div class="guide-dots"></div>
+              <button class="btn-nav guide-next" aria-label="Next step">Next ›</button>
+            </div>
+          </div>
+
+          <div class="segmented src-switch" role="radiogroup" aria-label="Firmware source">
+            <label><input type="radio" name="f413-src" value="official" checked /><span>Official firmware</span></label>
+            <label><input type="radio" name="f413-src" value="local" /><span>Your own file</span></label>
+          </div>
+          <div class="src-official">
+            <div class="fw-card">
+              <div class="field">
+                <label for="f413-fw">Firmware</label>
+                <select id="f413-fw" class="fw-select"></select>
+                <p class="fw-hint fw-chip-hint"></p>
+              </div>
+              <div class="fw-meta"></div>
+            </div>
+          </div>
+
+          <div class="src-local" hidden>
+          <div class="dropzone" tabindex="0" role="button" aria-label="Choose programmer firmware">
+            <input type="file" accept=".bin,.dfu,.hex,.ihex,.elf" hidden />
+            <div class="dz-title">Drop the firmware here or click to browse</div>
+            <div class="dz-hint">.bin, .dfu, .hex or .elf</div>
+          </div>
+          <div class="file-info"></div>
+
+          <div class="field bin-base-row" hidden>
+            <label for="f413-base">Load address for .bin</label>
+            <input id="f413-base" class="mono" type="text" value="0x08000000" spellcheck="false" />
+          </div>
+          </div>
+
+          <fieldset class="options">
+            <legend>Options</legend>
+            <label class="check"><input type="checkbox" id="f413-verify" checked /> Verify after writing</label>
+            <label class="check"><input type="checkbox" id="f413-leave" checked /> Leave DFU mode and start the firmware</label>
+          </fieldset>
+
+          <button class="btn btn-primary btn-program" disabled>Program the programmer</button>
+
+          <details class="help">
+            <summary>Driver setup (first time only)</summary>
+            <p><strong>Windows:</strong> WebUSB needs the <em>WinUSB</em> driver for the DFU bootloader. With the
+              programmer in DFU mode, run <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener">Zadig</a>,
+              choose <code>STM32 BOOTLOADER</code> and install <code>WinUSB</code>. (This replaces the ST DfuSe / libusbK
+              driver for that device.)</p>
+            <p><strong>Linux:</strong> allow access to the DFU device with a udev rule, e.g.
+              <code>/etc/udev/rules.d/50-stm32-dfu.rules</code>:</p>
+            <pre class="code">SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0666"</pre>
+            <p>then run <code>sudo udevadm control --reload-rules</code> and reconnect the device.</p>
+          </details>
+          <p class="source">Reference:
+            <a href="https://www.gctronic.com/doc/index.php?title=e-puck2#Firmware_update_3" target="_blank" rel="noopener">e-puck2 wiki · programmer firmware update</a>
+          </p>
+        </div>
+        <div class="col col-output">
+          <div class="progress" data-state="idle">
+            <div class="progress-head"><span class="progress-label"></span><span class="progress-pct"></span></div>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+          </div>
+          <div class="log-head">
+            <span>Log</span>
+            <span class="log-actions">
+              <button class="btn-link btn-copy">Copy</button>
+              <button class="btn-link btn-clear">Clear</button>
+            </span>
+          </div>
+          <pre class="log" aria-live="polite"></pre>
+        </div>
+      </section>
+
+      <details class="help help-global" id="serial-help">
+        <summary>Troubleshooting serial ports (STM32F407 and ESP32 tabs)</summary>
+        <p>The robot exposes two serial ports with USB ID <code>1d50:6018</code>: the <strong>GDB Server</strong>
+          (used for the STM32F407) and the <strong>Serial Monitor</strong> (used for the ESP32). Close any other
+          program using them (terminal, IDE, gdb) before programming.</p>
+        <p><strong>Linux:</strong> your user must be in the <code>dialout</code> group
+          (<code>sudo usermod -aG dialout $USER</code>, then log in again). If ModemManager is installed, keep it away from the
+          robot with a udev rule:</p>
+        <pre class="code">ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6018", ENV{ID_MM_DEVICE_IGNORE}="1"</pre>
+      </details>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

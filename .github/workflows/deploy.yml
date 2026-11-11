@@ -1,0 +1,62 @@
+# Builds the e-puck2 web programmer and publishes it on GitHub Pages.
+# Runs on every push to main (and manually from the Actions tab).
+# The build fails, and nothing is published, if public/firmware/manifest.json is not valid.
+#
+# One-time setup: repository Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# If this app is not at the root of the repository, move this file to <repo>/.github/workflows/
+# and set APP_DIR to the folder that contains package.json (e.g. "e-puck2-web-programmer").
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  APP_DIR: "."
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - run: npm ci
+
+      # Checks the firmware manifest, type-checks and builds into dist/
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.APP_DIR }}/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
