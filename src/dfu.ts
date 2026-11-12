@@ -83,8 +83,9 @@ export function parseMemoryDescriptor(desc: string): MemoryLayout {
   return { name, sectors };
 }
 
-// STM32F413 internal flash, used if the interface name cannot be read.
-const F413_DEFAULT = "@Internal Flash  /0x08000000/04*016Kg,01*064Kg,11*128Kg";
+// Internal flash layouts reported by the ST ROM DFU bootloader, used if the interface name cannot be read.
+export const F413_LAYOUT = "@Internal Flash  /0x08000000/04*016Kg,01*064Kg,11*128Kg";
+export const L452_LAYOUT = "@Internal Flash  /0x08000000/0256*0002Kg";
 
 export interface DfuStatus {
   status: number;
@@ -94,7 +95,9 @@ export interface DfuStatus {
 
 export class DfuseDevice {
   transferSize = 2048;
-  layout: MemoryLayout = parseMemoryDescriptor(F413_DEFAULT);
+  layout: MemoryLayout = parseMemoryDescriptor(F413_LAYOUT);
+  /** True if the memory layout was read from the device (DfuSe interface name). */
+  layoutReported = false;
   private intf = 0;
   log: (t: string) => void = () => {};
 
@@ -111,33 +114,38 @@ export class DfuseDevice {
       (d.serialNumber ? `, S/N ${d.serialNumber}` : "");
   }
 
-  async open() {
+  /** Open the DFU interface. `fallbackLayout` is used if the device does not report its memory layout. */
+  async open(fallbackLayout = F413_LAYOUT) {
     const d = this.device;
     await d.open();
     if (d.configuration === null) await d.selectConfiguration(1);
 
-    // Find the DFU interface/alternate setting for the internal flash.
-    let chosen: { intf: number; alt: number; name: string | undefined } | null = null;
+    // DFU interfaces / alternate settings. Their names (DfuSe memory descriptors) are not always
+    // filled in by the browser (e.g. Chrome on Windows): read them from the USB descriptors then.
+    const alts: { intf: number; alt: number; name: string | undefined }[] = [];
     for (const iface of d.configuration!.interfaces) {
       for (const alt of iface.alternates) {
         if (alt.interfaceClass !== 0xfe || alt.interfaceSubclass !== 0x01) continue;
-        const name = alt.interfaceName ?? undefined;
-        if (!chosen) chosen = { intf: iface.interfaceNumber, alt: alt.alternateSetting, name };
-        if (name && /internal flash/i.test(name)) {
-          chosen = { intf: iface.interfaceNumber, alt: alt.alternateSetting, name };
-        }
+        alts.push({ intf: iface.interfaceNumber, alt: alt.alternateSetting, name: alt.interfaceName ?? undefined });
       }
     }
-    if (!chosen) throw new Error("The selected device has no DFU interface");
+    if (alts.length === 0) throw new Error("The selected device has no DFU interface");
+    if (alts.some((a) => !a.name)) {
+      const names = await this.readInterfaceNames();
+      for (const a of alts) a.name ??= names.get(`${a.intf}/${a.alt}`);
+    }
+    const chosen = alts.find((a) => a.name && /internal flash/i.test(a.name)) ?? alts[0];
     this.intf = chosen.intf;
     await d.claimInterface(chosen.intf);
     await d.selectAlternateInterface(chosen.intf, chosen.alt);
 
     if (chosen.name && chosen.name.startsWith("@")) {
       this.layout = parseMemoryDescriptor(chosen.name);
+      this.layoutReported = true;
       this.log(`Memory: ${chosen.name.trim()}`);
     } else {
-      this.log("Memory layout not reported, using STM32F413 default");
+      this.layout = parseMemoryDescriptor(fallbackLayout);
+      this.layoutReported = false;
     }
 
     const ts = await this.readTransferSize();
@@ -157,28 +165,65 @@ export class DfuseDevice {
     }
   }
 
+  /** The whole configuration descriptor (with interface and functional descriptors), or null. */
+  private async readConfigDescriptor(): Promise<DataView | null> {
+    try {
+      const get = (length: number) =>
+        this.device.controlTransferIn(
+          { requestType: "standard", recipient: "device", request: 6, value: 0x0200, index: 0 },
+          length,
+        );
+      const head = await get(9);
+      return (await get(head.data!.getUint16(2, true))).data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Iterate the descriptors of the configuration descriptor: [offset, length, type]. */
+  private *descriptors(dv: DataView): Generator<[number, number, number]> {
+    for (let p = 0; p + 1 < dv.byteLength; ) {
+      const len = dv.getUint8(p);
+      if (len === 0) return;
+      yield [p, len, dv.getUint8(p + 1)];
+      p += len;
+    }
+  }
+
+  /** Names of the interface alternate settings, keyed "interface/alternate", read from string descriptors. */
+  private async readInterfaceNames(): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    const dv = await this.readConfigDescriptor();
+    if (!dv) return names;
+    for (const [p, len, type] of this.descriptors(dv)) {
+      if (type !== 0x04 || len < 9) continue; // interface descriptor
+      const index = dv.getUint8(p + 8); // iInterface
+      if (!index) continue;
+      try {
+        const r = await this.device.controlTransferIn(
+          { requestType: "standard", recipient: "device", request: 6, value: 0x0300 | index, index: 0x0409 },
+          255,
+        );
+        const sd = r.data;
+        if (!sd || sd.byteLength < 2) continue;
+        let name = "";
+        for (let i = 2; i + 1 < Math.min(sd.getUint8(0), sd.byteLength); i += 2) {
+          name += String.fromCharCode(sd.getUint16(i, true));
+        }
+        names.set(`${dv.getUint8(p + 2)}/${dv.getUint8(p + 3)}`, name);
+      } catch {
+        /* skip this one */
+      }
+    }
+    return names;
+  }
+
   /** Read wTransferSize from the DFU functional descriptor in the configuration descriptor. */
   private async readTransferSize(): Promise<number | null> {
-    try {
-      const head = await this.device.controlTransferIn(
-        { requestType: "standard", recipient: "device", request: 6, value: 0x0200, index: 0 },
-        9,
-      );
-      const total = head.data!.getUint16(2, true);
-      const full = await this.device.controlTransferIn(
-        { requestType: "standard", recipient: "device", request: 6, value: 0x0200, index: 0 },
-        total,
-      );
-      const dv = full.data!;
-      for (let p = 0; p + 1 < dv.byteLength; ) {
-        const len = dv.getUint8(p);
-        const type = dv.getUint8(p + 1);
-        if (len === 0) break;
-        if (type === 0x21 && len >= 7) return dv.getUint16(p + 5, true);
-        p += len;
-      }
-    } catch {
-      /* fall back to default */
+    const dv = await this.readConfigDescriptor();
+    if (!dv) return null;
+    for (const [p, len, type] of this.descriptors(dv)) {
+      if (type === 0x21 && len >= 7) return dv.getUint16(p + 5, true);
     }
     return null;
   }
@@ -220,21 +265,40 @@ export class DfuseDevice {
 
   /** Bring the device to dfuIDLE, clearing any error state. */
   async abortToIdle() {
-    await this.abort();
-    let s = await this.getStatus();
+    try {
+      await this.abort();
+    } catch {
+      /* ABORT stalls in dfuERROR: CLRSTATUS below handles that state */
+    }
+    let s = await this.getStatusPatient();
     if (s.state === State.dfuERROR) {
       await this.clearStatus();
-      s = await this.getStatus();
+      s = await this.getStatusPatient();
     }
     if (s.state !== State.dfuIDLE) throw new Error(`Device not idle (state ${s.state})`);
   }
 
+  /**
+   * GETSTATUS, tolerating a few stalls. The STM32L4 bootloader sometimes asks to be polled again
+   * (bwPollTimeout) before a page erase or write has finished, and stalls GETSTATUS meanwhile.
+   */
+  private async getStatusPatient(): Promise<DfuStatus> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.getStatus();
+      } catch (e) {
+        if (attempt >= 5) throw e;
+        await sleep(50 * attempt);
+      }
+    }
+  }
+
   /** Poll GETSTATUS while the device is busy; throws on DFU error. */
-  private async pollUntilIdle(expected: number): Promise<DfuStatus> {
-    let s = await this.getStatus();
+  private async pollUntilIdle(expected: number, minBusy = 0): Promise<DfuStatus> {
+    let s = await this.getStatusPatient();
     while (s.state === State.dfuDNBUSY || s.state === State.dfuMANIFEST) {
-      await sleep(Math.max(s.pollTimeout, 1));
-      s = await this.getStatus();
+      await sleep(Math.max(s.pollTimeout, minBusy, 1));
+      s = await this.getStatusPatient();
     }
     if (s.status !== 0) {
       throw new Error(`DFU error: ${STATUS_TEXT[s.status] ?? "status " + s.status}`);
@@ -243,12 +307,29 @@ export class DfuseDevice {
     return s;
   }
 
-  private async dfuseCommand(cmd: number, address?: number) {
+  /**
+   * Run a DfuSe operation; if it fails (stall, DFU error), bring the device back to idle and try again.
+   * Erasing or writing the same block twice is harmless.
+   */
+  private async retrying<T>(what: string, op: () => Promise<T>, attempts = 4): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await op();
+      } catch (e) {
+        if (attempt >= attempts) throw e;
+        this.log(`${what}: ${e instanceof Error ? e.message : String(e)} — retrying (${attempt})`);
+        await sleep(100 * attempt);
+        await this.abortToIdle();
+      }
+    }
+  }
+
+  private async dfuseCommand(cmd: number, address?: number, minBusy = 0) {
     const payload = new Uint8Array(address === undefined ? 1 : 5);
     payload[0] = cmd;
     if (address !== undefined) new DataView(payload.buffer).setUint32(1, address >>> 0, true);
     await this.out(DFU_DNLOAD, 0, payload);
-    await this.pollUntilIdle(State.dfuDNLOAD_IDLE);
+    await this.pollUntilIdle(State.dfuDNLOAD_IDLE, minBusy);
   }
 
   setAddress(address: number) {
@@ -256,7 +337,8 @@ export class DfuseDevice {
   }
 
   eraseSector(address: number) {
-    return this.dfuseCommand(CMD_ERASE, address);
+    // A 2 KB page of the STM32L4 takes up to ~25 ms to erase: never poll sooner than that.
+    return this.retrying(`Erase ${hex32(address)}`, () => this.dfuseCommand(CMD_ERASE, address, 25));
   }
 
   massErase() {
@@ -289,9 +371,12 @@ export class DfuseDevice {
     const xfer = this.transferSize;
     for (let off = 0; off < data.length; off += xfer) {
       const chunk = data.subarray(off, Math.min(off + xfer, data.length));
-      await this.setAddress(address + off);
-      await this.out(DFU_DNLOAD, 2, chunk);
-      await this.pollUntilIdle(State.dfuDNLOAD_IDLE);
+      await this.retrying(`Write ${hex32(address + off)}`, async () => {
+        await this.setAddress(address + off);
+        await this.out(DFU_DNLOAD, 2, chunk);
+        // Writing 2 KB takes ~20 ms on the STM32L4: never poll sooner than that.
+        await this.pollUntilIdle(State.dfuDNLOAD_IDLE, 25);
+      });
       onProgress?.(off + chunk.length);
     }
   }

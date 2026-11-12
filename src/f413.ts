@@ -1,6 +1,6 @@
 // Tab 3: STM32F413 programmer firmware, written through the STM32 ROM DFU bootloader (WebUSB).
 
-import { DfuseDevice } from "./dfu";
+import { DfuseDevice, F413_LAYOUT, L452_LAYOUT } from "./dfu";
 import { ProgrammerFirmware, downloadFirmware, loadManifest, versionText } from "./catalog";
 import { FirmwareImage, coalesceSegments, formatSize, hex32, loadFirmware, totalSize } from "./firmware";
 import { bindSourceSwitch, forceLocal, renderMeta, showListError } from "./sourceUi";
@@ -113,7 +113,7 @@ export function initF413() {
           img = await loadFirmware(f, entry.address ? parseAddress(entry.address) : 0x08000000);
         }
         if (!img) return;
-        await program(img, log, progress, verify.checked, leave.checked, expected);
+        await program(img, log, progress, verify.checked, leave.checked, expected, chip());
       } catch (e) {
         progress.fail("Failed");
         const msg = errorMessage(e);
@@ -136,6 +136,7 @@ async function program(
   verify: boolean,
   leave: boolean,
   expected: Chip | null,
+  guideChip: Chip,
 ) {
   if (!("usb" in navigator)) throw new Error("WebUSB is not available in this browser");
 
@@ -144,11 +145,20 @@ async function program(
   dfu.log = (t) => log.dim(t);
   try {
     progress.set("Connecting", 0);
-    await dfu.open();
+    // If the bootloader does not report its memory layout, assume the chip selected in the DFU guide.
+    const assumed: Chip = expected ?? guideChip;
+    await dfu.open(assumed === "l452" ? L452_LAYOUT : F413_LAYOUT);
     log.info(`Connected: ${dfu.description}`);
     const flashSize = dfu.layout.sectors.reduce((a, x) => a + x.size, 0);
-    const detected: Chip | null = flashSize === 512 * 1024 ? "l452" : flashSize === 1536 * 1024 ? "f413" : null;
-    log.info(`Flash ${formatSize(flashSize)}` + (detected ? ` → ${CHIP_NAME[detected]}` : ""));
+    let detected: Chip | null = null;
+    if (dfu.layoutReported) {
+      detected = flashSize === 512 * 1024 ? "l452" : flashSize === 1536 * 1024 ? "f413" : null;
+      log.info(`Flash ${formatSize(flashSize)}` + (detected ? ` → ${CHIP_NAME[detected]}` : ""));
+    } else {
+      log.warn(
+        `The bootloader did not report its memory layout: assuming ${CHIP_NAME[assumed]}, as selected in the DFU guide.`,
+      );
+    }
     if (expected && detected && expected !== detected) {
       throw new Error(
         `This firmware is for ${CHIP_NAME[expected]} but the connected programmer is ${CHIP_NAME[detected]}. ` +
