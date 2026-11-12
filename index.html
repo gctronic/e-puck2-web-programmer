@@ -266,6 +266,16 @@
                 the page writes that part again automatically, and the log says so. If programming still stops,
                 increase <strong>Pause between blocks</strong> (e.g. 20–50 ms) and try again.</li>
               <li>If the connection or the baud rate change fails, select <strong>115200</strong> baud.</li>
+              <li>If the ESP32 does not answer (<em>“Failed to connect with the device”</em> or <em>“The ESP32 does
+                not answer”</em>), which can happen when programming twice in a row, reset the programmer:
+                <ol>
+                  <li>turn the robot off;</li>
+                  <li>unplug the USB cable;</li>
+                  <li>turn the robot on;</li>
+                  <li>plug the USB cable back in, then click <strong>Program ESP32</strong> again.</li>
+                </ol>
+                The programmer stays powered as long as the robot is on or the cable is plugged in, so both steps
+                are needed.</li>
               <li>Enable <strong>Show serial trace</strong> to see the bytes exchanged with the ESP32 (programming
                 becomes much slower).</li>
             </ul>
@@ -378,7 +388,8 @@
             <p><strong>Windows:</strong> WebUSB needs the <em>WinUSB</em> driver for the DFU bootloader. With the
               programmer in DFU mode, run <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener">Zadig</a>,
               choose <code>STM32 BOOTLOADER</code> and install <code>WinUSB</code>. (This replaces the ST DfuSe / libusbK
-              driver for that device.)</p>
+              driver for that device.) Install WinUSB only for <code>STM32 BOOTLOADER</code>, never for the robot's
+              serial ports (<code>1d50:6018</code>), which must keep the Windows serial driver.</p>
             <p><strong>Linux:</strong> allow access to the DFU device with a udev rule, e.g.
               <code>/etc/udev/rules.d/50-stm32-dfu.rules</code>:</p>
             <pre class="code">SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0666"</pre>
@@ -413,6 +424,13 @@
           (<code>sudo usermod -aG dialout $USER</code>, then log in again). If ModemManager is installed, keep it away from the
           robot with a udev rule:</p>
         <pre class="code">ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6018", ENV{ID_MM_DEVICE_IGNORE}="1"</pre>
+        <p><strong>Windows:</strong> no driver to install: Windows 10/11 shows the two ports under
+          <em>Ports (COM &amp; LPT)</em> with its own serial driver (<code>usbser</code>), which Web Serial needs.
+          Do <strong>not</strong> use Zadig on these ports (Zadig and WinUSB are only for the programmer in DFU mode,
+          <code>STM32 BOOTLOADER</code>). If a port was switched to WinUSB, it disappears from the port list and from
+          <em>Ports (COM &amp; LPT)</em>; to restore it, in <em>Device Manager</em> find it under
+          <em>Universal Serial Bus devices</em>, right-click → <em>Uninstall device</em>, tick
+          <em>Attempt to remove the driver for this device</em>, then unplug and plug the robot again.</p>
       </details>
     </main>
 

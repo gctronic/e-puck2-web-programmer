@@ -153,5 +153,19 @@ publish their code.
 ## Drivers
 
 - Windows, STM32F413 DFU: install the **WinUSB** driver for `STM32 BOOTLOADER` (0483:df11) with Zadig.
+- Windows, serial ports (1d50:6018, GDB Server and Serial Monitor): keep the built-in serial driver (`usbser`,
+  *Ports (COM & LPT)*); Web Serial only sees COM ports. If Zadig switched one to WinUSB, uninstall that device
+  in Device Manager with *Attempt to remove the driver for this device* ticked, then reconnect the robot.
+  If the driver is still in use, list it with `pnputil /enum-drivers` and remove it with
+  `pnputil /delete-driver oemNN.inf /uninstall /force`.
+
+### ESP32 reset through the programmer
+
+The programmer firmware drives the ESP32 from the control lines of the Serial Monitor port: EN = not RTS,
+and GPIO0 goes low (download mode) once DTR and RTS are both set, staying low until DTR is cleared. The page
+therefore uses its own reset sequences (`EpuckClassicReset`, `EpuckHardReset` in `src/esp32.ts`) that change
+one line at a time, like esptool.py: (DTR,RTS) = (0,1) → (1,1) → (1,0) → (0,0). The esptool-js default sets
+both lines in one call, which on Windows (usbser.sys sends an RTS change only with the next DTR change) restarts
+the ESP32 in normal mode: “Failed to connect with the device”.
 - Linux: user in the `dialout` group for the serial ports; udev rule for 0483:df11, e.g.
   `SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0666"`.

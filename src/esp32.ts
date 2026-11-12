@@ -6,10 +6,12 @@
 //     0x1000 bootloader.bin 0x10000 ESP32_E-Puck_2.bin 0x8000 partitions_singleapp.bin
 
 import {
+  ClassicReset,
   ESPLoader,
   FlashFreqValues,
   FlashModeValues,
   FlashSizeValues,
+  HardReset,
   IEspLoaderTerminal,
   Transport,
 } from "esptool-js";
@@ -341,6 +343,39 @@ interface FlashSettings {
   blockPause: number;
 }
 
+/*
+ * ESP32 reset through the e-puck2 programmer. Its firmware drives the ESP32 from the "Serial Monitor"
+ * control lines: EN = not RTS; GPIO0 goes low (download mode) once DTR and RTS are both set, and stays
+ * low until DTR is cleared. So the ESP32 enters download mode with the esptool.py classic sequence,
+ * one line at a time: (DTR,RTS) = (0,1) reset, (1,1) select download mode, (1,0) run, (0,0) release.
+ *
+ * esptool-js 0.7 sets both lines in one call instead. On Linux that still yields the (1,1) step,
+ * but on Windows the usbser.sys driver sends the RTS change only with the next DTR change, so the
+ * ESP32 restarts in normal mode and the connection fails ("Failed to connect with the device").
+ * Transport.setRTS() repeats DTR after RTS, which forces usbser.sys to send each step.
+ */
+class EpuckClassicReset extends ClassicReset {
+  async reset() {
+    await this.transport.setDTR(false);
+    await this.transport.setRTS(true); // (0,1): EN low
+    await sleep(100);
+    await this.transport.setDTR(true); // (1,1): GPIO0 low
+    await this.transport.setRTS(false); // (1,0): EN high, the ESP32 starts in download mode
+    await sleep(this.resetDelay);
+    await this.transport.setDTR(false); // (0,0): GPIO0 released
+  }
+}
+
+/** Reset into the application: EN pulse with DTR (GPIO0) cleared. */
+class EpuckHardReset extends HardReset {
+  async reset() {
+    await this.transport.setDTR(false);
+    await this.transport.setRTS(true); // (0,1): EN low, GPIO0 high
+    await sleep(100);
+    await this.transport.setRTS(false); // (0,0): the ESP32 starts the application
+  }
+}
+
 const fromBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 /**
@@ -378,7 +413,31 @@ async function connectLoader(
   baud: number,
   flashSize: FlashSizeValues,
 ): Promise<FlashSizeValues> {
-  await loader.detectChip("default_reset");
+  // Sometimes (e.g. when programming twice in a row) the ESP32 does not answer after the reset.
+  // Closing and reopening the serial port, after a pause, often brings it back: try a few times
+  // before giving up.
+  const CONNECT_TRIES = 3;
+  for (let i = 1; ; i++) {
+    try {
+      await loader.detectChip("default_reset");
+      break;
+    } catch (e) {
+      if (!/Failed to connect/i.test(errorMessage(e))) throw e;
+      if (i >= CONNECT_TRIES) {
+        throw new Error(
+          "The ESP32 does not answer. Turn the robot off, unplug the USB cable, turn the robot on, plug the cable " +
+            "back in, then try again (see “If programming fails”).",
+        );
+      }
+      log.warn(`The ESP32 did not answer: closing and reopening the serial port (try ${i + 1} of ${CONNECT_TRIES})…`);
+      try {
+        await transport.disconnect();
+      } catch {
+        /* ignore */
+      }
+      await sleep(1500);
+    }
+  }
   const chip = loader.chip;
   if (!/^ESP32$/.test(chip.CHIP_NAME)) log.warn(`Expected an ESP32, found ${chip.CHIP_NAME}`);
 
@@ -544,6 +603,10 @@ async function flash(
     romBaudrate: ROM_BAUD,
     terminal,
     debugLogging: false,
+    resetConstructors: {
+      classicReset: (t, delay) => new EpuckClassicReset(t, delay),
+      hardReset: (t) => new EpuckHardReset(t),
+    },
   });
 
   // Through the e-puck2 programmer bridge, sending the next block as soon as the previous one
